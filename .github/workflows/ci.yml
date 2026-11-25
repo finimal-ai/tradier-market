@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-and-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Run tests
+        run: poetry run pytest -q
+
+      - name: Install audit tools
+        run: pip install pip-audit
+
+      - name: Install osv-scanner
+        run: |
+          curl -sSfL https://github.com/google/osv-scanner/releases/download/v2.7.1/osv-scanner_linux_amd64 \
+            -o /usr/local/bin/osv-scanner
+          chmod +x /usr/local/bin/osv-scanner
+
+      - name: pip-audit (project venv)
+        run: |
+          PIPAPI_PYTHON_LOCATION="$(poetry env info -p)/bin/python" pip-audit -l
+
+      - name: osv-scanner (poetry.lock)
+        run: osv-scanner --lockfile=poetry.lock
